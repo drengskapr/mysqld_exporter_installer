@@ -1,0 +1,7 @@
+---
+# tasks file for mysqld_exporter_installer
+
+- name: Debian mysqld_exporter installation
+  import_tasks: mysqld_exporter_debian.yml
+  when: ansible_distribution == "Debian"
+

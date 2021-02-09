@@ -1,0 +1,81 @@
+---
+
+  - name: Prerequisites installation
+    apt:
+      pkg:
+        - wget
+        - curl
+        - tar
+        - unzip
+      state: present
+      update_cache: yes
+
+  - name: Create prometheus group
+    group:
+      name: prometheus
+      system: yes
+      state: present
+
+  - name: Create prometheus system user
+    user:
+      name: prometheus
+      system: yes
+      create_home: no
+      shell: /sbin/nologin
+      group: prometheus
+      state: present
+
+  - name: Download exporter archive
+    get_url:
+      url: "https://github.com/prometheus/mysqld_exporter/releases/download/v{{ exporter_version }}/mysqld_exporter-{{ exporter_version }}.linux-amd64.tar.gz"
+      dest: "/tmp/mysqld_exporter-{{ exporter_version }}.linux-amd64.tar.gz"
+
+  - name: Create directory where to unarchive to
+    file:
+      path: "/tmp/mysqld_exporter-{{ exporter_version }}"
+      state: directory
+      owner: root
+      group: root
+
+  - name: mysqld_exporter unpack archive
+    unarchive:
+      src: "/tmp/mysqld_exporter-{{ exporter_version }}.linux-amd64.tar.gz"
+      dest: "/tmp/mysqld_exporter-{{ exporter_version }}"
+      remote_src: yes
+
+  - name: mysqld_exporter copy binary to working directory
+    copy:
+      src: "/tmp/mysqld_exporter-{{ exporter_version }}/mysqld_exporter-{{ exporter_version }}.linux-amd64/mysqld_exporter"
+      dest: /usr/local/bin/mysqld_exporter
+      mode: 0755
+      owner: root
+      group: prometheus
+      remote_src: yes
+
+  - name: mysqld_exporter copy mysql credential file
+    template:
+      src: templates/.mysqld_exporter.cnf.j2
+      dest: /etc/.mysqld_exporter.cnf
+      owner: root
+      group: prometheus
+      mode: 0640
+
+  - name: copy mysqld_exporter systemd unit file
+    copy:
+      src: files/mysqld_exporter.service
+      dest: /etc/systemd/system/
+      mode: 0755
+      owner: root
+      group: root
+
+  - name: start mysqld_exporter service
+    systemd:
+      state: started
+      enabled: yes
+      name: mysqld_exporter
+      daemon_reload: yes
+
+  - name: Clean tmp folder
+    file:
+      path: "/tmp/mysqld_exporter-{{ exporter_version }}"
+      state: absent
